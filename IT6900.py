@@ -25,10 +25,7 @@ class IT6900:
 
     def __init__(self, port: str, *args, **kwargs):
         # configure logger
-        if 'logger' not in kwargs or kwargs['logger'] is None:
-            self.logger = config_logger()
-        else:
-            self.logger = kwargs.pop('logger')
+        self.logger = kwargs.get('logger', config_logger())
         # parameters
         self.io_count = 0
         self.io_error_count = 0
