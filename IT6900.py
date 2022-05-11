@@ -4,6 +4,9 @@ import time
 import sys
 import serial
 
+from EmultedIT6900AtComPort import EmultedIT6900AtComPort
+from ComPort import ComPort
+
 sys.path.append('../TangoUtils')
 from Moxa import MoxaTCPComPort
 from config_logger import config_logger
@@ -39,7 +42,7 @@ class IT6900:
         self.port = port.strip()
         self.args = args
         self.kwargs = kwargs
-        # create variables
+        #
         self.command = b''
         self.response = b''
         # timeouts
@@ -62,27 +65,17 @@ class IT6900:
         self.init()
 
     def create_com_port(self):
-        try:
-            if (self.port.upper().startswith('COM')
-                    or self.port.startswith('tty')
-                    or self.port.startswith('/dev')
-                    or self.port.startswith('cua')):
-                if 'timeout' not in self.kwargs:
-                    self.kwargs['timeout'] = 0.0
-                # COM port will be openet automatically after creation
-                self.com = serial.Serial(self.port, *self.args, **self.kwargs)
-            else:
-                self.com = MoxaTCPComPort(self.port, *self.args, **self.kwargs)
-            if self.com.isOpen():
-                self.logger.debug('Port %s is ready', self.port)
-                return self.com
-        except:
-            log_exception(self)
-        self.logger.error('COM port creation error')
-        self.com = None
+        self.com = ComPort(self.port, *self.args, **self.kwargs)
+        if self.com.ready:
+            self.logger.debug('Port %s is ready', self.port)
+        else:
+            self.logger.error('Port %s creation error', self.port)
         return self.com
 
     def init(self):
+        # switch to remote mode
+        self.switch_remote()
+        self.clear_status()
         # device id, sn and type
         self.id = self.read_device_id()
         if not self.id.startswith(ID_OK):
@@ -92,9 +85,6 @@ class IT6900:
         self.ready = True
         self.sn = self.read_serial_number()
         self.type = self.read_device_type()
-        # switch to remote mode
-        self.switch_remote()
-        self.clear_status()
         # read maximal voltage and current
         if self.send_command('VOLT? MAX'):
             self.max_voltage = float(self.response[:-1])
@@ -352,7 +342,7 @@ class IT6900:
 
 
 if __name__ == "__main__":
-    pd1 = IT6900("COM3", baudrate=115200)
+    pd1 = IT6900("COM3", baudrate=115200, emulated=EmultedIT6900AtComPort)
     # pd1.detect_baud()
     for i in range(100):
         cmd = ":*IDN?"
@@ -365,6 +355,7 @@ if __name__ == "__main__":
         v1 = pd1.send_command(cmd)
         dt1 = int((time.time() - t_0) * 1000.0)  # ms
         print(pd1.port, cmd, '->', pd1.response, v1, '%4d ms ' % dt1)
+    print('Errors', pd1.read_errors())
     print('Total I/O:', pd1.io_count)
     print('Total Errors:', pd1.io_error_count)
     print('min I/O time:', pd1.min_io_time)
