@@ -342,7 +342,7 @@ class IT6900:
 
 
 if __name__ == "__main__":
-    pd1 = IT6900("FAKECOM3", baudrate=115200, emulated=EmultedIT6900AtComPort)
+    pd1 = IT6900("COM3", baudrate=115200, emulated=EmultedIT6900AtComPort)
     # pd1.detect_baud()
     for i in range(100):
         cmd = "*IDN?"

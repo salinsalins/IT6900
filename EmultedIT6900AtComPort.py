@@ -132,7 +132,7 @@ class EmultedIT6900AtComPort:
             if self.write_error:
                 return b'Unknown command\n'
             else:
-                return b'\n'
+                return b'No error\n'
         self.last_write = b''
         return b''
 
