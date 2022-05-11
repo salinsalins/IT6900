@@ -160,10 +160,9 @@ class IT6900:
                     r = self.com.read(1)
                     if len(r) > 0:
                         result += r
-                else:
-                    if self.timeout:
-                        self.logger.error('Reading timeout')
-                        return result
+                if self.timeout:
+                    self.logger.error('Reading timeout')
+                    return result
         except:
             log_exception(self)
         return result
