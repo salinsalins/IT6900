@@ -64,14 +64,6 @@ class IT6900:
         # further initialization (for possible async use)
         self.init()
 
-    def create_com_port(self):
-        self.com = ComPort(self.port, *self.args, **self.kwargs)
-        if self.com.ready:
-            self.logger.debug('Port %s is ready', self.port)
-        else:
-            self.logger.error('Port %s creation error', self.port)
-        return self.com
-
     def init(self):
         # switch to remote mode
         self.switch_remote()
@@ -86,12 +78,27 @@ class IT6900:
         self.sn = self.read_serial_number()
         self.type = self.read_device_type()
         # read maximal voltage and current
-        if self.send_command('VOLT? MAX'):
+        if self.send_command(b'VOLT? MAX'):
             self.max_voltage = float(self.response[:-1])
-        if self.send_command('CURR? MAX'):
+        if self.send_command(b'CURR? MAX'):
             self.max_current = float(self.response[:-1])
         msg = 'Device has been initialized %s' % self.id
         self.logger.debug(msg)
+
+    def create_com_port(self):
+        self.com = ComPort(self.port, *self.args, **self.kwargs)
+        if self.com.ready:
+            self.logger.debug('Port %s is ready', self.port)
+        else:
+            self.logger.error('Port %s creation error', self.port)
+        return self.com
+
+    def close_com_port(self):
+        self.ready = False
+        try:
+            self.com.close()
+        except:
+            pass
 
     def send_command(self, cmd, check_response=None):
         self.io_count += 1
@@ -217,17 +224,6 @@ class IT6900:
         v = self.read_value(cmd2, type(value))
         return value == v
 
-    def read_output(self):
-        if not self.send_command(b'OUTP?'):
-            return None
-        response = self.response.upper()
-        if response.startswith((b'ON', b'1')):
-            return True
-        if response.startswith((b'OFF', b'0')):
-            return False
-        self.logger.info('Unexpected response %s' % response)
-        return None
-
     def write_output(self, value: bool):
         if value:
             t_value = 'ON'
@@ -241,6 +237,17 @@ class IT6900:
 
     def write_current(self, value: float):
         return self.write_value(b'CURR', value)
+
+    def read_output(self):
+        if not self.send_command(b'OUTP?'):
+            return None
+        response = self.response.upper()
+        if response.startswith((b'ON', b'1')):
+            return True
+        if response.startswith((b'OFF', b'0')):
+            return False
+        self.logger.info('Unexpected response %s' % response)
+        return None
 
     def read_current(self):
         return self.read_value(b'MEAS:CURR?')
@@ -259,7 +266,7 @@ class IT6900:
 
     def read_device_id(self):
         try:
-            if self.send_command(b':*IDN?'):
+            if self.send_command(b'*IDN?'):
                 return self.response[:-1].decode()
             else:
                 return 'Unknown Device'
@@ -285,16 +292,6 @@ class IT6900:
         except:
             return "Unknown Device"
 
-    def close_com_port(self):
-        self.ready = False
-        try:
-            self.com.close()
-        except:
-            pass
-
-    def switch_remote(self):
-        return self.send_command(b'SYST:REM', False)
-
     def read_errors(self):
         if self.send_command(b'SYST:ERR?'):
             return self.response[:-1].decode()
@@ -306,6 +303,9 @@ class IT6900:
 
     def clear_status(self):
         return self.send_command(b'*CLS', False)
+
+    def switch_remote(self):
+        return self.send_command(b'SYST:REM', False)
 
     def reconnect(self, port=None, *args, **kwargs):
         if port is not None:
@@ -342,10 +342,10 @@ class IT6900:
 
 
 if __name__ == "__main__":
-    pd1 = IT6900("COM3", baudrate=115200, emulated=EmultedIT6900AtComPort)
+    pd1 = IT6900("FAKECOM3", baudrate=115200, emulated=EmultedIT6900AtComPort)
     # pd1.detect_baud()
     for i in range(100):
-        cmd = ":*IDN?"
+        cmd = "*IDN?"
         t_0 = time.time()
         v1 = pd1.send_command(cmd)
         dt1 = int((time.time() - t_0) * 1000.0)  # ms

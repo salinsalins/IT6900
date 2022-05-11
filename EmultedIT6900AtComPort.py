@@ -3,12 +3,15 @@
 import time
 from threading import Lock
 
-COMMANDS = (b'DVC?', b'PV?', b'MV?', b'PC?', b'MC?', b'IDN?', b'SN?')
+COMMANDS = (b'OUTP?', b'VOLT?', b'MEAS:VOLT?', b'CURR?', b'MEAS:CURR?', b'*IDN?', b'*SN?',
+            b'MEAS:POW?', b'SYST:ERR?', b'SYST:LOC', b'*CLS', b'SYST:REM', b'VOLT? MAX',
+            b'CURR? MAX')
+LF = b'\n'
 
 class EmultedIT6900AtComPort:
     SN = 123456
     RESPONSE_DELAY = 0.035
-    ID = b'FAKELAMBDA GEN10-100'
+    ID = 'ITECH Ltd., IT6900EMULATED,  800774011776810024,  1.14-1.08'
 
     def __init__(self, port, *args, **kwargs):
         self.port = port
@@ -34,34 +37,34 @@ class EmultedIT6900AtComPort:
 
     def add_device(self):
         if self.last_address not in self.pv:
-            self.id[self.last_address] = EmultedTDKLambdaAtComPort.ID
+            self.id[self.last_address] = EmultedIT6900AtComPort.ID
             self.pv[self.last_address] = 0.0
             self.pc[self.last_address] = 0.0
             self.mv[self.last_address] = 0.0
             self.mc[self.last_address] = 0.0
             self.out[self.last_address] = False
-            self.sn[self.last_address] = str(EmultedTDKLambdaAtComPort.SN).encode()
-            EmultedTDKLambdaAtComPort.SN += 1
+            self.sn[self.last_address] = str(EmultedIT6900AtComPort.SN).encode()
+            EmultedIT6900AtComPort.SN += 1
 
     def write(self, cmd, timeout=None):
         self.last_write = cmd
         self.write_error = False
-        commands = cmd[:-1].split(';')
+        commands = cmd[:-1].split(b';')
         for c in commands:
             try:
-                if c.startswith(b'ADR '):
-                    self.last_address = int(self.last_write[4:])
+                if c.startswith(b'ADDR '):
+                    self.last_address = int(self.last_write[5:])
                     self.add_device()
-                elif c.startswith(b'PV '):
+                elif c.startswith(b'VOLT '):
                     self.pv[self.last_address] = float(cmd[3:])
-                elif c.startswith(b'PC '):
+                elif c.startswith(b'CURR '):
                     self.pc[self.last_address] = float(cmd[3:])
-                elif c.startswith(b'OUT ON') or c.startswith(b'OUT 1'):
+                elif c.startswith(b'OUTP ON') or c.startswith(b'OUTP 1'):
                     self.out[self.last_address] = True
-                elif c.startswith(b'OUT OF') or c.startswith(b'OUT 0'):
+                elif c.startswith(b'OUTP OF') or c.startswith(b'OUTP 0'):
                     self.out[self.last_address] = False
                 else:
-                    if c[:-1] not in COMMANDS:
+                    if c not in COMMANDS:
                         self.write_error = True
                 self.t[self.last_address] = time.perf_counter()
                 return len(cmd)
@@ -78,29 +81,11 @@ class EmultedIT6900AtComPort:
         self.t[self.last_address] = time.perf_counter()
         if self.write_error:
             self.last_write = b''
-            return b'E1\r'
-        if self.last_write.startswith(b'ADR '):
-            self.last_write = b''
-            return b'OK\r'
-        if self.last_write.startswith(b'DVC?'):
-            if self.out[self.last_address]:
-                self.mv[self.last_address] = self.pv[self.last_address]
-                self.mc[self.last_address] = self.pc[self.last_address]
-            else:
-                self.mv[self.last_address] += 0.5
-                if self.mv[self.last_address] > 10.0:
-                    self.mv[self.last_address] = 0.0
-                self.mc[self.last_address] += 1.0
-                if self.mc[self.last_address] > 100.0:
-                    self.mc[self.last_address] = 0.0
-            self.last_write = b''
-            return b'%f, %f, %f, %f, 0.0, 0.0\r' % \
-                   (self.mv[self.last_address], self.pv[self.last_address],
-                    self.mc[self.last_address], self.pc[self.last_address])
-        if self.last_write.startswith(b'PV?'):
-            self.last_write = b''
-            return str(self.pv[self.last_address]).encode() + b'\r'
-        if self.last_write.startswith(b'MV?'):
+            return b''
+        # if self.last_write.startswith(b'ADR '):
+        #     self.last_write = b''
+        #     return b'OK\r'
+        if self.last_write.startswith(b'MEAS:POW?'):
             if self.out[self.last_address]:
                 self.mv[self.last_address] = self.pv[self.last_address]
             else:
@@ -108,11 +93,23 @@ class EmultedIT6900AtComPort:
                 if self.mv[self.last_address] > 10.0:
                     self.mv[self.last_address] = 0.0
             self.last_write = b''
-            return str(self.mv[self.last_address]).encode() + b'\r'
-        if self.last_write.startswith(b'PC?'):
+            return str(self.mv[self.last_address]).encode() + LF
+        if self.last_write.startswith(b'VOLT?'):
             self.last_write = b''
-            return str(self.pc[self.last_address]).encode() + b'\r'
-        if self.last_write.startswith(b'MC?'):
+            return str(self.pv[self.last_address]).encode() + LF
+        if self.last_write.startswith(b'MEAS:VOLT?'):
+            if self.out[self.last_address]:
+                self.mv[self.last_address] = self.pv[self.last_address]
+            else:
+                self.mv[self.last_address] += 0.5
+                if self.mv[self.last_address] > 10.0:
+                    self.mv[self.last_address] = 0.0
+            self.last_write = b''
+            return str(self.mv[self.last_address]).encode() + LF
+        if self.last_write.startswith(b'CURR?'):
+            self.last_write = b''
+            return str(self.pc[self.last_address]).encode() + LF
+        if self.last_write.startswith(b'MEAS:CURR?'):
             if self.out[self.last_address]:
                 self.mc[self.last_address] = self.pc[self.last_address]
             else:
@@ -120,25 +117,34 @@ class EmultedIT6900AtComPort:
                 if self.mv[self.last_address] > 100.0:
                     self.mv[self.last_address] = 0.0
             self.last_write = b''
-            return str(self.mv[self.last_address]).encode() + b'\r'
-        if self.last_write.startswith(b'IDN?'):
+            return str(self.mv[self.last_address]).encode() + LF
+        if self.last_write.startswith(b'*IDN?'):
             self.last_write = b''
-            return self.id[self.last_address] + b'\r'
-        if self.last_write.startswith(b'SN?'):
-            self.last_write = b''
-            return self.sn[self.last_address] + b'\r'
-        if self.last_write.startswith(b'OUT?'):
+            return b'ITECH Ltd., IT6932EMULATED, 800774011776810024,  1.14-1.08\n'
+        if self.last_write.startswith(b'OUTP?'):
             self.last_write = b''
             if self.out[self.last_address]:
-                return b'ON\r'
+                return b'ON\n'
             else:
-                return b'OFF\r'
+                return b'OFF\n'
+        if self.last_write.startswith(b'SYST:ERR?'):
+            self.last_write = b''
+            if self.write_error:
+                return b'Unknown command\n'
+            else:
+                return b'\n'
         self.last_write = b''
-        return b'OK\r'
+        return b''
 
     def reset_input_buffer(self, timeout=None):
+        return True
+
+    def reset_output_buffer(self, timeout=None):
         return True
 
     def isOpen(self):
         return True
 
+    @property
+    def in_waiting(self):
+        return 1
