@@ -98,7 +98,7 @@ class IT6900:
         try:
             self.com.close()
         except:
-            pass
+            log_exception(self)
 
     def send_command(self, cmd, check_response=None):
         self.io_count += 1

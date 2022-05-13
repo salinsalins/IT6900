@@ -90,6 +90,7 @@ class IT6900_Server(TangoServerPrototype):
         baud = self.config.get('baudrate', 115200)
         kwargs['baudrate'] = baud
         kwargs['logger'] = self.logger
+        self.write_config_to_properties()
         self.it6900 = IT6900.IT6900(port, *args, **kwargs)
         if self.it6900.initialized():
             # add device to list
