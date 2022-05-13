@@ -86,7 +86,7 @@ class IT6900:
         self.logger.debug(msg)
 
     def create_com_port(self):
-        self.com = ComPort(self.port, *self.args, **self.kwargs)
+        self.com = ComPort(self.port, *self.args, emulated=EmultedIT6900AtComPort, **self.kwargs)
         if self.com.ready:
             self.logger.debug('Port %s is ready', self.port)
         else:

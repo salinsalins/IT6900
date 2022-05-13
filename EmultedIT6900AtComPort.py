@@ -3,10 +3,14 @@
 import time
 from threading import Lock
 
+from config_logger import config_logger
+from log_exception import log_exception
+
 COMMANDS = (b'OUTP?', b'VOLT?', b'MEAS:VOLT?', b'CURR?', b'MEAS:CURR?', b'*IDN?', b'*SN?',
             b'MEAS:POW?', b'SYST:ERR?', b'SYST:LOC', b'*CLS', b'SYST:REM', b'VOLT? MAX',
             b'CURR? MAX')
 LF = b'\n'
+
 
 class EmultedIT6900AtComPort:
     SN = 123456
@@ -14,6 +18,7 @@ class EmultedIT6900AtComPort:
     ID = 'ITECH Ltd., IT6900EMULATED,  800774011776810024,  1.14-1.08'
 
     def __init__(self, port, *args, **kwargs):
+        self.logger = kwargs.get('logger', config_logger())
         self.port = port
         self.last_address = -1
         self.lock = Lock()
@@ -56,9 +61,9 @@ class EmultedIT6900AtComPort:
                     self.last_address = int(self.last_write[5:])
                     self.add_device()
                 elif c.startswith(b'VOLT '):
-                    self.pv[self.last_address] = float(cmd[3:])
+                    self.pv[self.last_address] = float(c[5:])
                 elif c.startswith(b'CURR '):
-                    self.pc[self.last_address] = float(cmd[3:])
+                    self.pc[self.last_address] = float(c[5:])
                 elif c.startswith(b'OUTP ON') or c.startswith(b'OUTP 1'):
                     self.out[self.last_address] = True
                 elif c.startswith(b'OUTP OF') or c.startswith(b'OUTP 0'):
@@ -69,9 +74,11 @@ class EmultedIT6900AtComPort:
                 self.t[self.last_address] = time.perf_counter()
                 return len(cmd)
             except:
+                log_exception(self)
                 self.write_error = True
                 self.t[self.last_address] = time.perf_counter()
                 return len(cmd)
+        self.last_write = commands[-1]
 
     def read(self, size=1, timeout=None):
         if self.last_write == b'':
@@ -79,12 +86,18 @@ class EmultedIT6900AtComPort:
         if time.perf_counter() - self.t[self.last_address] < self.RESPONSE_DELAY:
             return b''
         self.t[self.last_address] = time.perf_counter()
-        if self.write_error:
-            self.last_write = b''
-            return b''
+        # if self.write_error:
+        #     self.last_write = b''
+        #     return b''
         # if self.last_write.startswith(b'ADR '):
         #     self.last_write = b''
         #     return b'OK\r'
+        if self.last_write.startswith(b'VOLT? MAX'):
+            self.last_write = b''
+            return b'60.0\n'
+        if self.last_write.startswith(b'CURR? MAX'):
+            self.last_write = b''
+            return b'10.0\n'
         if self.last_write.startswith(b'MEAS:POW?'):
             if self.out[self.last_address]:
                 self.mv[self.last_address] = self.pv[self.last_address]
