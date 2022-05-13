@@ -4,6 +4,9 @@ import time
 import sys
 import serial
 
+from EmultedIT6900AtComPort import EmultedIT6900AtComPort
+from ComPort import ComPort
+
 sys.path.append('../TangoUtils')
 from Moxa import MoxaTCPComPort
 from config_logger import config_logger
@@ -36,7 +39,7 @@ class IT6900:
         self.port = port.strip()
         self.args = args
         self.kwargs = kwargs
-        # create variables
+        #
         self.command = b''
         self.response = b''
         # timeouts
@@ -58,28 +61,10 @@ class IT6900:
         # further initialization (for possible async use)
         self.init()
 
-    def create_com_port(self):
-        try:
-            if (self.port.upper().startswith('COM')
-                    or self.port.startswith('tty')
-                    or self.port.startswith('/dev')
-                    or self.port.startswith('cua')):
-                if 'timeout' not in self.kwargs:
-                    self.kwargs['timeout'] = 0.0
-                # COM port will be openet automatically after creation
-                self.com = serial.Serial(self.port, *self.args, **self.kwargs)
-            else:
-                self.com = MoxaTCPComPort(self.port, *self.args, **self.kwargs)
-            if self.com.isOpen():
-                self.logger.debug('Port %s is ready', self.port)
-                return self.com
-        except:
-            log_exception(self)
-        self.logger.error('COM port creation error')
-        self.com = None
-        return self.com
-
     def init(self):
+        # switch to remote mode
+        self.switch_remote()
+        self.clear_status()
         # device id, sn and type
         self.id = self.read_device_id()
         if not self.id.startswith(ID_OK):
@@ -89,16 +74,28 @@ class IT6900:
         self.ready = True
         self.sn = self.read_serial_number()
         self.type = self.read_device_type()
-        # switch to remote mode
-        self.switch_remote()
-        self.clear_status()
         # read maximal voltage and current
-        if self.send_command('VOLT? MAX'):
+        if self.send_command(b'VOLT? MAX'):
             self.max_voltage = float(self.response[:-1])
-        if self.send_command('CURR? MAX'):
+        if self.send_command(b'CURR? MAX'):
             self.max_current = float(self.response[:-1])
         msg = 'Device has been initialized %s' % self.id
         self.logger.debug(msg)
+
+    def create_com_port(self):
+        self.com = ComPort(self.port, *self.args, emulated=EmultedIT6900AtComPort, **self.kwargs)
+        if self.com.ready:
+            self.logger.debug('Port %s is ready', self.port)
+        else:
+            self.logger.error('Port %s creation error', self.port)
+        return self.com
+
+    def close_com_port(self):
+        self.ready = False
+        try:
+            self.com.close()
+        except:
+            log_exception(self)
 
     def send_command(self, cmd, check_response=None):
         self.io_count += 1
@@ -160,10 +157,9 @@ class IT6900:
                     r = self.com.read(1)
                     if len(r) > 0:
                         result += r
-                else:
-                    if self.timeout:
-                        self.logger.error('Reading timeout')
-                        return result
+                if self.timeout:
+                    self.logger.error('Reading timeout')
+                    return result
         except:
             log_exception(self)
         return result
@@ -224,17 +220,6 @@ class IT6900:
         v = self.read_value(cmd2, type(value))
         return value == v
 
-    def read_output(self):
-        if not self.send_command(b'OUTP?'):
-            return None
-        response = self.response.upper()
-        if response.startswith((b'ON', b'1')):
-            return True
-        if response.startswith((b'OFF', b'0')):
-            return False
-        self.logger.info('Unexpected response %s' % response)
-        return None
-
     def write_output(self, value: bool):
         if value:
             t_value = 'ON'
@@ -248,6 +233,17 @@ class IT6900:
 
     def write_current(self, value: float):
         return self.write_value(b'CURR', value)
+
+    def read_output(self):
+        if not self.send_command(b'OUTP?'):
+            return None
+        response = self.response.upper()
+        if response.startswith((b'ON', b'1')):
+            return True
+        if response.startswith((b'OFF', b'0')):
+            return False
+        self.logger.info('Unexpected response %s' % response)
+        return None
 
     def read_current(self):
         return self.read_value(b'MEAS:CURR?')
@@ -266,7 +262,7 @@ class IT6900:
 
     def read_device_id(self):
         try:
-            if self.send_command(b':*IDN?'):
+            if self.send_command(b'*IDN?'):
                 return self.response[:-1].decode()
             else:
                 return 'Unknown Device'
@@ -292,16 +288,6 @@ class IT6900:
         except:
             return "Unknown Device"
 
-    def close_com_port(self):
-        self.ready = False
-        try:
-            self.com.close()
-        except:
-            pass
-
-    def switch_remote(self):
-        return self.send_command(b'SYST:REM', False)
-
     def read_errors(self):
         if self.send_command(b'SYST:ERR?'):
             return self.response[:-1].decode()
@@ -313,6 +299,9 @@ class IT6900:
 
     def clear_status(self):
         return self.send_command(b'*CLS', False)
+
+    def switch_remote(self):
+        return self.send_command(b'SYST:REM', False)
 
     def reconnect(self, port=None, *args, **kwargs):
         if port is not None:
@@ -349,10 +338,10 @@ class IT6900:
 
 
 if __name__ == "__main__":
-    pd1 = IT6900("COM3", baudrate=115200)
+    pd1 = IT6900("COM3", baudrate=115200, emulated=EmultedIT6900AtComPort)
     # pd1.detect_baud()
     for i in range(100):
-        cmd = ":*IDN?"
+        cmd = "*IDN?"
         t_0 = time.time()
         v1 = pd1.send_command(cmd)
         dt1 = int((time.time() - t_0) * 1000.0)  # ms
@@ -362,6 +351,7 @@ if __name__ == "__main__":
         v1 = pd1.send_command(cmd)
         dt1 = int((time.time() - t_0) * 1000.0)  # ms
         print(pd1.port, cmd, '->', pd1.response, v1, '%4d ms ' % dt1)
+    print('Errors', pd1.read_errors())
     print('Total I/O:', pd1.io_count)
     print('Total Errors:', pd1.io_error_count)
     print('min I/O time:', pd1.min_io_time)
