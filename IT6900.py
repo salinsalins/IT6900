@@ -27,11 +27,6 @@ class IT6900Exception(Exception):
 class IT6900:
 
     def __init__(self, port: str, *args, **kwargs):
-        # configure logger
-        if 'logger' not in kwargs or kwargs['logger'] is None:
-            self.logger = config_logger()
-        else:
-            self.logger = kwargs.pop('logger')
         # parameters
         self.io_count = 0
         self.io_error_count = 0
@@ -41,6 +36,8 @@ class IT6900:
         #
         self.port = port.strip()
         self.args = args
+        # configure logger
+        self.logger = kwargs.get('logger', config_logger())
         self.kwargs = kwargs
         #
         self.command = b''
@@ -341,7 +338,7 @@ class IT6900:
 
 
 if __name__ == "__main__":
-    pd1 = IT6900("COM3", baudrate=115200, emulated=EmultedIT6900AtComPort)
+    pd1 = IT6900("COM3", baudrate=115200)
     # pd1.detect_baud()
     for i in range(100):
         cmd = "*IDN?"
