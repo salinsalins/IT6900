@@ -24,8 +24,8 @@ APPLICATION_VERSION = '1.0'
 
 
 class IT6900_Server(TangoServerPrototype):
-    server_version = APPLICATION_VERSION
-    server_name = APPLICATION_NAME
+    server_version_value = APPLICATION_VERSION
+    server_name_value = APPLICATION_NAME
 
     port = attribute(label="Port", dtype=str,
                      display_level=DispLevel.OPERATOR,
