@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import time
-import sys
-import serial
+import sys; sys.path.append('../TangoUtils')
 
 from EmultedIT6900AtComPort import EmultedIT6900AtComPort
 from ComPort import ComPort
 
-sys.path.append('../TangoUtils')
-from Moxa import MoxaTCPComPort
 from config_logger import config_logger
 from log_exception import log_exception
 
