@@ -64,7 +64,7 @@ class IT6900:
         self.clear_status()
         # device id, sn and type
         self.id = self.read_device_id()
-        if not self.id.startswith(self.ID_OK):
+        if not self.id_ok():
             self.ready = False
             self.logger.error('%s initialization error', self.DEVICE_NAME)
             return
@@ -332,6 +332,15 @@ class IT6900:
             if self.ready:
                 self.logger.debug('Reconnected successfully at %s', baud)
                 return
+
+    def id_ok(self):
+        return self.id.startswith(self.ID_OK)
+
+
+class IT6900_Lambda(IT6900):
+    ID_OK = 'TDK_LAMBDA'
+    DEVICE_NAME = 'TDK_LAMBDA Genesys+'
+    DEVICE_FAMILY = 'TDK_LAMBDA Genesys+ family Power Supply'
 
 
 if __name__ == "__main__":

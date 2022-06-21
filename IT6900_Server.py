@@ -91,7 +91,11 @@ class IT6900_Server(TangoServerPrototype):
         kwargs['baudrate'] = baud
         kwargs['logger'] = self.logger
         self.write_config_to_properties()
-        self.it6900 = IT6900.IT6900(port, *args, **kwargs)
+        tdklambda = self.config.pop('tdklambda', 'n')
+        if tdklambda == 'y':
+            self.it6900 = IT6900.IT6900_Lambda(port, *args, **kwargs)
+        else:
+            self.it6900 = IT6900.IT6900(port, *args, **kwargs)
         if self.it6900.initialized():
             # add device to list
             self.programmed_voltage.set_max_value(self.it6900.max_voltage)
