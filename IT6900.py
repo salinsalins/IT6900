@@ -10,11 +10,6 @@ from config_logger import config_logger
 from log_exception import log_exception
 
 LF = b'\n'
-DEVICE_NAME = 'IT6900'
-DEVICE_FAMILY = 'IT6900 family Power Supply'
-ID_OK = 'ITECH Ltd., IT69'
-MIN_TIMEOUT = 0.1
-READ_TIMEOUT = 0.5
 
 
 class IT6900Exception(Exception):
@@ -22,6 +17,11 @@ class IT6900Exception(Exception):
 
 
 class IT6900:
+    ID_OK = 'ITECH Ltd., IT69'
+    DEVICE_NAME = 'IT6900'
+    DEVICE_FAMILY = 'IT6900 family Power Supply'
+    MIN_TIMEOUT = 0.1
+    READ_TIMEOUT = 0.5
 
     def __init__(self, port: str, *args, **kwargs):
         # parameters
@@ -64,9 +64,9 @@ class IT6900:
         self.clear_status()
         # device id, sn and type
         self.id = self.read_device_id()
-        if not self.id.startswith(ID_OK):
+        if not self.id.startswith(self.ID_OK):
             self.ready = False
-            self.logger.error('%s initialization error', DEVICE_NAME)
+            self.logger.error('%s initialization error', self.DEVICE_NAME)
             return
         self.ready = True
         self.sn = self.read_serial_number()
