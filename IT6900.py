@@ -333,14 +333,16 @@ class IT6900:
                 self.logger.debug('Reconnected successfully at %s', baud)
                 return
 
-    def id_ok(self):
-        return self.id.startswith(self.ID_OK)
+    def id_ok(self, id=None):
+        if id is None:
+            id = self.id
+        return id.startswith(self.ID_OK)
 
 
 class IT6900_Lambda(IT6900):
-    ID_OK = 'TDK_LAMBDA'
-    DEVICE_NAME = 'TDK_LAMBDA Genesys+'
-    DEVICE_FAMILY = 'TDK_LAMBDA Genesys+ family Power Supply'
+    ID_OK = 'TDK-LAMBDA'
+    DEVICE_NAME = 'TDK-LAMBDA Genesys+'
+    DEVICE_FAMILY = 'TDK-LAMBDA Genesys+ family Power Supply'
 
 
 if __name__ == "__main__":
