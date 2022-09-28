@@ -115,9 +115,10 @@ class IT6900:
                 else:
                     check_response = False
             if not check_response:
-                return True
-            # read response (to LF by default)
-            result = self.read_response()
+                result = True
+            else:
+                # read response (to LF by default)
+                result = self.read_response()
             # reding time stats
             dt = time.perf_counter() - t0
             self.min_io_time = min(self.min_io_time, dt)
@@ -125,6 +126,7 @@ class IT6900:
             self.avg_io_time = (self.avg_io_time * (self.io_count - 1) + dt) / self.io_count
             if not result:
                 self.io_error_count += 1
+                self.logger.info(f'IO ERROR - Wrong response {self.response} for {cmd}')
             self.logger.debug('%s -> %s, %s, %4.0f ms', cmd, self.response, result, dt * 1000)
             return result
         except:
