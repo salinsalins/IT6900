@@ -131,7 +131,7 @@ class IT6900:
             return result
         except:
             self.io_error_count += 1
-            log_exception(self, 'Command %s exception', cmd)
+            log_exception(self, f'Command {cmd} exception')
             return False
 
     @property
