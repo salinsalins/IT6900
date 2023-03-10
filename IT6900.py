@@ -1,23 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import time
-import sys
-import serial
+import sys; sys.path.append('../TangoUtils')
 
 from EmultedIT6900AtComPort import EmultedIT6900AtComPort
 from ComPort import ComPort
 
-sys.path.append('../TangoUtils')
-from Moxa import MoxaTCPComPort
 from config_logger import config_logger
 from log_exception import log_exception
 
 LF = b'\n'
-DEVICE_NAME = 'IT6900'
-DEVICE_FAMILY = 'IT6900 family Power Supply'
-ID_OK = 'ITECH Ltd., IT69'
-MIN_TIMEOUT = 0.1
-READ_TIMEOUT = 0.5
 
 
 class IT6900Exception(Exception):
@@ -25,32 +17,36 @@ class IT6900Exception(Exception):
 
 
 class IT6900:
+    ID_OK = 'ITECH Ltd., IT69'
+    DEVICE_NAME = 'IT6900'
+    DEVICE_FAMILY = 'IT6900 family Power Supply'
+    MIN_TIMEOUT = 0.1
+    READ_TIMEOUT = 0.5
 
     def __init__(self, port: str, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
         # configure logger
         self.logger = kwargs.get('logger', config_logger())
-        # parameters
+        #
+        self.port = port.strip()
         self.io_count = 0
         self.io_error_count = 0
         self.avg_io_time = 0.0
         self.max_io_time = 0.0
         self.min_io_time = 1000.0
-        #
-        self.port = port.strip()
-        self.args = args
-        self.kwargs = kwargs
-        #
         self.command = b''
         self.response = b''
-        # timeouts
         self.timeout_time = float('inf')
         # default com port, id, and serial number
         self.com = None
         self.id = 'Unknown Device'
         self.type = 'Unknown Device'
         self.sn = ''
+
         self.max_voltage = float('inf')
         self.max_current = float('inf')
+
         self.ready = False
         # create and open COM port
         self.com = self.create_com_port()
@@ -67,20 +63,24 @@ class IT6900:
         self.clear_status()
         # device id, sn and type
         self.id = self.read_device_id()
-        if not self.id.startswith(ID_OK):
+        if not self.id_ok():
             self.ready = False
-            self.logger.error('%s initialization error', DEVICE_NAME)
-            return
+            self.logger.error('%s initialization error', self.DEVICE_NAME)
+            return False
         self.ready = True
         self.sn = self.read_serial_number()
         self.type = self.read_device_type()
         # read maximal voltage and current
         if self.send_command(b'VOLT? MAX'):
             self.max_voltage = float(self.response[:-1])
+        else:
+            self.logger.warning(f'Max voltage can not be determined for {self.DEVICE_NAME}')
         if self.send_command(b'CURR? MAX'):
             self.max_current = float(self.response[:-1])
-        msg = 'Device has been initialized %s' % self.id
-        self.logger.debug(msg)
+        else:
+            self.logger.warning(f'Max current can not be determined for {self.DEVICE_NAME}')
+        self.logger.debug(f'Device has been initialized {self.id}')
+        return True
 
     def create_com_port(self):
         self.com = ComPort(self.port, *self.args, emulated=EmultedIT6900AtComPort, **self.kwargs)
@@ -97,42 +97,50 @@ class IT6900:
         except:
             log_exception(self)
 
-    def send_command(self, cmd, check_response=None):
+    def send_command(self, command: bytes, check_response: bool = None) -> bool:
+        # command (bytes or str) - input command
+        # check_response (bool or None) - if None check response if command contains b'?'
+        # returns True or False
         self.io_count += 1
         try:
-            # unify command
-            cmd = cmd.upper().strip()
             # convert str to bytes
-            if isinstance(cmd, str):
-                cmd = str.encode(cmd)
-            if not cmd.endswith(LF):
-                cmd += LF
+            if isinstance(command, str):
+                command = str.encode(command)
+            # unify command
+            command = command.upper().strip()
+            if not command.endswith(LF):
+                command += LF
+
             self.response = b''
             t0 = time.perf_counter()
-            # write command
-            if not self.write(cmd):
+            # send command
+            if not self.write(command):
                 return False
+            # check response
             if check_response is None:
-                if b'?' in cmd:
+                if b'?' in command:
                     check_response = True
                 else:
                     check_response = False
             if not check_response:
-                return True
-            # read response (to LF by default)
-            result = self.read_response()
-            # reding time stats
+                result = True
+            else:
+                # read response (to LF by default)
+                result = self.read_response()
+            # calculate time stats
             dt = time.perf_counter() - t0
             self.min_io_time = min(self.min_io_time, dt)
             self.max_io_time = max(self.max_io_time, dt)
             self.avg_io_time = (self.avg_io_time * (self.io_count - 1) + dt) / self.io_count
+            #
             if not result:
                 self.io_error_count += 1
-            self.logger.debug('%s -> %s, %s, %4.0f ms', cmd, self.response, result, dt * 1000)
+                self.logger.info(f'IO ERROR - Wrong response {self.response} for {command}')
+            self.logger.debug('%s -> %s, %s, %4.0f ms', command, self.response, result, dt * 1000)
             return result
         except:
             self.io_error_count += 1
-            log_exception(self, 'Command %s exception', cmd)
+            log_exception(self, f'Command {command} exception')
             return False
 
     @property
@@ -336,9 +344,20 @@ class IT6900:
                 self.logger.debug('Reconnected successfully at %s', baud)
                 return
 
+    def id_ok(self, id=None):
+        if id is None:
+            id = self.id
+        return id.startswith(self.ID_OK)
+
+
+class IT6900_Lambda(IT6900):
+    ID_OK = 'TDK-LAMBDA'
+    DEVICE_NAME = 'TDK-LAMBDA Genesys+'
+    DEVICE_FAMILY = 'TDK-LAMBDA Genesys+ family Power Supply'
+
 
 if __name__ == "__main__":
-    pd1 = IT6900("COM3", baudrate=115200, emulated=EmultedIT6900AtComPort)
+    pd1 = IT6900("COM3", baudrate=115200)
     # pd1.detect_baud()
     for i in range(100):
         cmd = "*IDN?"
