@@ -90,7 +90,7 @@ class IT6900_Server(TangoServerPrototype):
         baud = self.config.get('baudrate', 115200)
         kwargs['baudrate'] = baud
         kwargs['logger'] = self.logger
-        self.write_config_to_properties()
+        # self.write_config_to_properties()
         tdklambda = self.config.pop('tdklambda', 'n')
         if tdklambda == 'y':
             self.it6900 = IT6900.IT6900_Lambda(port, *args, **kwargs)
