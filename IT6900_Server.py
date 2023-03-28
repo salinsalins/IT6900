@@ -82,43 +82,42 @@ class IT6900_Server(TangoServerPrototype):
 
     def init_device(self):
         super().init_device()
-        if self not in IT6900_Server.device_list:
-            IT6900_Server.device_list.append(self)
+        msg = f'{self.get_name()} IT6900 Initialization'
+        self.logger.info(msg)
+        self.set_state(DevState.INIT, msg)
         kwargs = {}
         args = ()
         port = self.config.get('port', 'COM3')
         baud = self.config.get('baudrate', 115200)
         kwargs['baudrate'] = baud
         kwargs['logger'] = self.logger
-        # self.write_config_to_properties()
         tdklambda = self.config.pop('tdklambda', 'n')
         if tdklambda == 'y':
             self.it6900 = IT6900.IT6900_Lambda(port, *args, **kwargs)
         else:
             self.it6900 = IT6900.IT6900(port, *args, **kwargs)
         if self.it6900.initialized():
-            # add device to list
+            # max voltage and current
             self.programmed_voltage.set_max_value(self.it6900.max_voltage)
             self.programmed_current.set_max_value(self.it6900.max_current)
             self.programmed_voltage.set_write_value(self.read_programmed_voltage())
             self.programmed_current.set_write_value(self.read_programmed_current())
             self.output_state.set_write_value(self.read_output_state())
             # set state to running
-            self.set_state(DevState.RUNNING)
-            self.set_status('Successfully initialized')
-            msg = '%s at %s initialized successfully' % (self.it6900.type, self.it6900.port)
+            msg = '%s %s at %s initialized successfully' % (self.get_name(), self.it6900.type, self.it6900.port)
             self.logger.info(msg)
+            self.set_state(DevState.RUNNING, msg)
         else:
-            self.logger.error('Device initialization error')
-            self.set_state(DevState.FAULT)
-            self.set_status('Initialization error')
+            msg = '%s initialization error' % self.get_name()
+            self.logger.error(msg)
+            self.set_state(DevState.FAULT, msg)
 
     def delete_device(self):
         self.it6900.ready = False
         self.it6900.close_com_port()
-        if self in IT6900_Server.devices:
-            IT6900_Server.devices.remove(self)
-        self.logger.info('Device has been deleted')
+        super().delete_device()
+        msg = '%s has been deleted' % self.get_name()
+        self.logger.info(msg)
 
     def read_port(self):
         if self.it6900.initialized():
@@ -333,8 +332,8 @@ class IT6900_Server(TangoServerPrototype):
 
 def looping():
     time.sleep(1.0)
-    for dev in IT6900_Server.device_list:
-        dev.logger.debug("Test loop")
+    for dev in IT6900_Server.devices:
+        IT6900_Server.devices[dev].logger.debug("Test loop")
 
 
 if __name__ == "__main__":
