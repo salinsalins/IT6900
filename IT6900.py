@@ -23,8 +23,6 @@ class IT6900:
     ID_OK = 'ITECH Ltd., IT69'
     DEVICE_NAME = 'IT6900'
     DEVICE_FAMILY = 'IT6900 family Power Supply'
-    MIN_TIMEOUT = 0.1
-    READ_TIMEOUT = 0.5
     _devices = []
     _lock = Lock()
 
@@ -33,7 +31,7 @@ class IT6900:
         self.kwargs = kwargs
         # configure logger
         self.logger = kwargs.get('logger', config_logger())
-        self.read_timeout = kwargs.get('read_timeout', 1.0)
+        self.read_timeout = kwargs.get('read_timeout', 0.5)
         #
         self.port = port.strip()
         self.io_count = 0
@@ -71,7 +69,7 @@ class IT6900:
         self.id = self.read_device_id()
         if not self.id_ok():
             self.ready = False
-            self.logger.error('%s initialization error', self.DEVICE_NAME)
+            self.logger.error(f'{self.pre}  Initialization error')
             return False
         self.ready = True
         self.sn = self.read_serial_number()
@@ -80,12 +78,12 @@ class IT6900:
         if self.send_command(b'VOLT? MAX'):
             self.max_voltage = float(self.response[:-1])
         else:
-            self.logger.warning(f'Max voltage can not be determined for {self.DEVICE_NAME}')
+            self.logger.warning(f'{self.pre} Max voltage can not be determined')
         if self.send_command(b'CURR? MAX'):
             self.max_current = float(self.response[:-1])
         else:
-            self.logger.warning(f'Max current can not be determined for {self.DEVICE_NAME}')
-        self.logger.debug(f'Device has been initialized {self.id}')
+            self.logger.warning(f'{self.pre} Max current can not be determined')
+        self.logger.debug(f'{self.pre} Device has been initialized')
         return True
 
     def create_com_port(self):
@@ -178,7 +176,7 @@ class IT6900:
             log_exception(self.logger)
         return result
 
-    def read_until(self, terminator=LF, size=None, timeout=READ_TIMEOUT):
+    def read_until(self, terminator=LF, size=None, timeout=None):
         result = b''
         r = b''
         while terminator not in r:
