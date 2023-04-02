@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import time
-import sys; sys.path.append('../TangoUtils')
+import sys;
+from multiprocessing import Lock
+
+sys.path.append('../TangoUtils')
 
 from EmultedIT6900AtComPort import EmultedIT6900AtComPort
 from ComPort import ComPort
@@ -22,6 +25,8 @@ class IT6900:
     DEVICE_FAMILY = 'IT6900 family Power Supply'
     MIN_TIMEOUT = 0.1
     READ_TIMEOUT = 0.5
+    _devices = []
+    _lock = Lock()
 
     def __init__(self, port: str, *args, **kwargs):
         self.args = args
@@ -40,20 +45,20 @@ class IT6900:
         self.timeout_time = float('inf')
         # default com port, id, and serial number
         self.com = None
-        self.id = 'Unknown Device'
-        self.type = 'Unknown Device'
+        self.id = 'Unknown IT6***'
+        self.type = 'Unknown IT6***'
         self.sn = ''
-
+        self.pre = f'{self.id} {self.port} '
+        # max values
         self.max_voltage = float('inf')
         self.max_current = float('inf')
-
+        #
         self.ready = False
         # create and open COM port
         self.com = self.create_com_port()
-        if self.com is None:
-            self.logger.error('Can not open serial port')
-            self.ready = False
-            return
+        with IT6900._lock:
+            if self not in IT6900._devices:
+                IT6900._devices.append(self)
         # further initialization (for possible async use)
         self.init()
 
@@ -84,10 +89,6 @@ class IT6900:
 
     def create_com_port(self):
         self.com = ComPort(self.port, *self.args, emulated=EmultedIT6900AtComPort, **self.kwargs)
-        if self.com.ready:
-            self.logger.debug('Port %s is ready', self.port)
-        else:
-            self.logger.error('Port %s creation error', self.port)
         return self.com
 
     def close_com_port(self):
@@ -95,7 +96,7 @@ class IT6900:
         try:
             self.com.close()
         except:
-            log_exception(self)
+            log_exception(self.logger)
 
     def send_command(self, command: bytes, check_response: bool = None) -> bool:
         # command (bytes or str) - input command
