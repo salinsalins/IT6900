@@ -33,6 +33,7 @@ class IT6900:
         self.kwargs = kwargs
         # configure logger
         self.logger = kwargs.get('logger', config_logger())
+        self.read_timeout = kwargs.get('read_timeout', 1.0)
         #
         self.port = port.strip()
         self.io_count = 0
@@ -159,6 +160,8 @@ class IT6900:
 
     def read(self, size=1, timeout=None):
         result = b''
+        if timeout is None:
+            timeout = self.read_timeout
         self.timeout = timeout
         try:
             while len(result) < size:
@@ -167,10 +170,12 @@ class IT6900:
                     if len(r) > 0:
                         result += r
                 if self.timeout:
-                    self.logger.error('Reading timeout')
+                    self.logger.debug(f'{self.pre} Reading timeout')
                     return result
+        except KeyboardInterrupt:
+            raise
         except:
-            log_exception(self)
+            log_exception(self.logger)
         return result
 
     def read_until(self, terminator=LF, size=None, timeout=READ_TIMEOUT):
