@@ -97,7 +97,7 @@ class IT6900:
         except:
             log_exception(self.logger)
 
-    def send_command(self, command: bytes, check_response: bool = None) -> bool:
+    def send_command(self, command, check_response: bool = None) -> bool:
         # command (bytes or str) - input command
         # check_response (bool or None) - if None check response if command contains b'?'
         # returns True or False
@@ -192,7 +192,7 @@ class IT6900:
         result = self.read_until(expected)
         self.response = result
         if expected not in result:
-            self.logger.error('Response %s without %s ', result, expected)
+            self.logger.debug(f'{self.pre} Response %s without %s ', result, expected)
             return False
         return True
 
@@ -205,13 +205,13 @@ class IT6900:
             # write command
             length = self.com.write(cmd)
             if len(cmd) != length:
-                self.logger.error('Write error %s of %s' % (length, len(cmd)))
+                self.logger.error(f'{self.pre} Write error %s of %s' % (length, len(cmd)))
                 return False
             # dt = (time.perf_counter() - t0) * 1000.0
             # self.logger.debug('%s %s bytes in %4.0f ms', cmd, length, dt)
             return True
         except:
-            log_exception(self, 'Exception during write')
+            log_exception(self.logger, f'{self.pre} Exception during write')
             return False
 
     def read_value(self, cmd, v_type=float):
