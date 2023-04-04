@@ -27,34 +27,42 @@ class IT6900:
     _lock = Lock()
 
     def __init__(self, port: str, *args, **kwargs):
+        # defaults
         self.args = args
         self.kwargs = kwargs
-        # configure logger
-        self.logger = kwargs.get('logger', config_logger())
-        self.read_timeout = kwargs.get('read_timeout', 0.5)
-        #
         self.port = port.strip()
-        self.io_count = 0
-        self.io_error_count = 0
-        self.avg_io_time = 0.0
-        self.max_io_time = 0.0
-        self.min_io_time = 1000.0
+        # logger
+        self.logger = kwargs.get('logger', config_logger())
+        # timeout
+        self.read_timeout = kwargs.get('read_timeout', 0.5)
+        self.read_timeout_time = float('inf')
+        self.reconnect_timeout = kwargs.get('reconnect_timeout', 5.0)
+        self.reconnect_timeout_time = 0.0
+        #
         self.command = b''
         self.response = b''
-        self.timeout_time = float('inf')
-        # default com port, id, and serial number
+        # com port, id, and serial number
         self.com = None
         self.id = 'Unknown IT6***'
         self.type = 'Unknown IT6***'
         self.sn = ''
+        # log prefix
         self.pre = f'{self.id} {self.port} '
         # max values
         self.max_voltage = float('inf')
         self.max_current = float('inf')
         #
         self.ready = False
+        # io statistics
+        self.io_count = 0
+        self.io_error_count = 0
+        self.avg_io_time = 0.0
+        self.max_io_time = 0.0
+        self.min_io_time = 1000.0
+        #
         # create and open COM port
         self.com = self.create_com_port()
+        # add to list
         with IT6900._lock:
             if self not in IT6900._devices:
                 IT6900._devices.append(self)
@@ -65,24 +73,31 @@ class IT6900:
         # switch to remote mode
         self.switch_remote()
         self.clear_status()
-        # device id, sn and type
+        # read device id
         self.id = self.read_device_id()
         if not self.id_ok():
             self.ready = False
+            self.reconnect_timeout_time = time.perf_counter() + self.reconnect_timeout
             self.logger.error(f'{self.pre}  Initialization error')
             return False
         self.ready = True
+        # read serial number and type
         self.sn = self.read_serial_number()
         self.type = self.read_device_type()
         # read maximal voltage and current
-        if self.send_command(b'VOLT? MAX'):
-            self.max_voltage = float(self.response[:-1])
-        else:
-            self.logger.warning(f'{self.pre} Max voltage can not be determined')
-        if self.send_command(b'CURR? MAX'):
-            self.max_current = float(self.response[:-1])
-        else:
-            self.logger.warning(f'{self.pre} Max current can not be determined')
+        try:
+            if self.send_command(b'VOLT? MAX'):
+                self.max_voltage = float(self.response[:-1])
+            else:
+                self.logger.warning(f'{self.pre} Max voltage can not be determined')
+            if self.send_command(b'CURR? MAX'):
+                self.max_current = float(self.response[:-1])
+            else:
+                self.logger.warning(f'{self.pre} Max current can not be determined')
+        except KeyboardInterrupt:
+            raise
+        except:
+            log_exception(self.logger, f'{self.pre} Exception')
         self.logger.debug(f'{self.pre} Device has been initialized')
         return True
 
@@ -110,7 +125,7 @@ class IT6900:
             command = command.upper().strip()
             if not command.endswith(LF):
                 command += LF
-
+            #
             self.response = b''
             t0 = time.perf_counter()
             # send command
@@ -135,26 +150,26 @@ class IT6900:
             #
             if not result:
                 self.io_error_count += 1
-                self.logger.info(f'IO ERROR - Wrong response {self.response} for {command}')
-            self.logger.debug('%s -> %s, %s, %4.0f ms', command, self.response, result, dt * 1000)
+                self.logger.info(f'{self.pre} I/O ERROR response {self.response} for {command}')
+            self.logger.debug(f'{self.pre} {command} -> {self.response}, {result}, %4.0f ms', dt * 1000)
             return result
         except:
             self.io_error_count += 1
-            log_exception(self, f'Command {command} exception')
+            log_exception(self, f'{self.pre} Command {command} exception')
             return False
 
     @property
     def timeout(self):
-        if time.perf_counter() > self.timeout_time:
+        if time.perf_counter() > self.read_timeout_time:
             return True
         return False
 
     @timeout.setter
     def timeout(self, value):
         if value is not None:
-            self.timeout_time = time.perf_counter() + value
+            self.read_timeout_time = time.perf_counter() + value
         else:
-            self.timeout_time = float('inf')
+            self.read_timeout_time = float('inf')
 
     def read(self, size=1, timeout=None):
         result = b''
@@ -316,6 +331,8 @@ class IT6900:
         return self.send_command(b'SYST:REM', False)
 
     def reconnect(self, port=None, *args, **kwargs):
+        if time.perf_counter() < self.reconnect_timeout_time:
+            return
         if port is not None:
             self.port = port.strip()
         if len(args) > 0:
@@ -325,11 +342,7 @@ class IT6900:
         self.ready = False
         self.close_com_port()
         self.com = self.create_com_port()
-        # self.com.reset_output_buffer()
-        # self.com.reset_input_buffer()
-        # self.send_command('*IDN?', False)
         self.init()
-        # print(self.read_errors())
 
     def initialized(self):
         return self.ready
