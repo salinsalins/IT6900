@@ -84,6 +84,7 @@ class IT6900:
         # read serial number and type
         self.sn = self.read_serial_number()
         self.type = self.read_device_type()
+        self.pre = f'{self.type} at {self.port} '
         # read maximal voltage and current
         try:
             if self.send_command(b'VOLT? MAX'):
