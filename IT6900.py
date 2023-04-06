@@ -36,7 +36,8 @@ class IT6900:
         # timeout
         self.read_timeout = kwargs.get('read_timeout', 0.5)
         self.read_timeout_time = float('inf')
-        self.reconnect_timeout = kwargs.get('reconnect_timeout', 5.0)
+        self.suspend_to = 0.0
+        self.suspend_delay = kwargs.get('suspend_delay', 5.0)
         self.reconnect_timeout_time = 0.0
         #
         self.command = b''
@@ -77,7 +78,7 @@ class IT6900:
         self.id = self.read_device_id()
         if not self.id_ok():
             self.ready = False
-            self.reconnect_timeout_time = time.perf_counter() + self.reconnect_timeout
+            self.suspend()
             self.logger.error(f'{self.pre}  Initialization error')
             return False
         self.ready = True
@@ -99,6 +100,8 @@ class IT6900:
             raise
         except:
             log_exception(self.logger, f'{self.pre} Exception')
+            self.suspend()
+            return False
         self.logger.debug(f'{self.pre} Device has been initialized')
         return True
 
@@ -115,12 +118,16 @@ class IT6900:
         except:
             log_exception(self.logger)
 
-    def send_command(self, command, check_response: bool = None) -> bool:
+    def send_command(self, command,
+                     check_response: bool = None,
+                     check_ready: bool = True) -> bool:
         # command (bytes or str) - input command
         # check_response (bool or None) - if None check response if command contains b'?'
         # returns True or False
         self.io_count += 1
         try:
+            if check_ready and not self.ready:
+                return False
             # convert str to bytes
             if isinstance(command, str):
                 command = str.encode(command)
@@ -154,6 +161,7 @@ class IT6900:
             if not result:
                 self.io_error_count += 1
                 self.logger.info(f'{self.pre} I/O ERROR response {self.response} for {command}')
+                self.suspend()
             self.logger.debug(f'{self.pre} {command} -> {self.response}, {result}, %4.0f ms', dt * 1000)
             return result
         except KeyboardInterrupt:
@@ -161,6 +169,7 @@ class IT6900:
         except:
             self.io_error_count += 1
             log_exception(self, f'{self.pre} Command {command} exception')
+            self.suspend()
             return False
 
     @property
@@ -175,6 +184,21 @@ class IT6900:
             self.read_timeout_time = time.perf_counter() + value
         else:
             self.read_timeout_time = float('inf')
+
+    @property
+    def ready(self):
+        if not time.perf_counter() > self.suspend_to:
+            self.logger.debug(f'{self.pre} Suspended')
+            return False
+        if not self._ready:
+            self.logger.debug(f'{self.pre} Try to init')
+            self.init()
+        val = self._ready and time.perf_counter() > self.suspend_to
+        return val
+
+    @ready.setter
+    def ready(self, value):
+        self._ready = bool(value)
 
     def read(self, size=1, timeout=None):
         result = b''
@@ -195,6 +219,12 @@ class IT6900:
         except:
             log_exception(self.logger)
         return result
+
+    def suspend(self):
+        if time.time() < self.suspend_to:
+            return
+        self.suspend_to = time.time() + self.suspend_delay
+        self.logger.debug(f'{self.pre} Suspended for {self.suspend_delay} s')
 
     def read_until(self, terminator=LF, size=None, timeout=None):
         result = b''
@@ -298,7 +328,7 @@ class IT6900:
 
     def read_device_id(self):
         try:
-            if self.send_command(b'*IDN?'):
+            if self.send_command(b'*IDN?', check_ready=False):
                 return self.response[:-1].decode()
             else:
                 return 'Unknown Device'
@@ -337,13 +367,13 @@ class IT6900:
             return ''
 
     def switch_local(self):
-        return self.send_command(b'SYST:LOC', False)
+        return self.send_command(b'SYST:LOC', False, False)
 
     def clear_status(self):
-        return self.send_command(b'*CLS', False)
+        return self.send_command(b'*CLS', False, False)
 
     def switch_remote(self):
-        return self.send_command(b'SYST:REM', False)
+        return self.send_command(b'SYST:REM', False, False)
 
     def reconnect(self, port=None, *args, **kwargs):
         if time.perf_counter() < self.reconnect_timeout_time:
