@@ -110,6 +110,8 @@ class IT6900:
         self.ready = False
         try:
             self.com.close()
+        except KeyboardInterrupt:
+            raise
         except:
             log_exception(self.logger)
 
@@ -154,6 +156,8 @@ class IT6900:
                 self.logger.info(f'{self.pre} I/O ERROR response {self.response} for {command}')
             self.logger.debug(f'{self.pre} {command} -> {self.response}, {result}, %4.0f ms', dt * 1000)
             return result
+        except KeyboardInterrupt:
+            raise
         except:
             self.io_error_count += 1
             log_exception(self, f'{self.pre} Command {command} exception')
@@ -226,6 +230,8 @@ class IT6900:
             # dt = (time.perf_counter() - t0) * 1000.0
             # self.logger.debug('%s %s bytes in %4.0f ms', cmd, length, dt)
             return True
+        except KeyboardInterrupt:
+            raise
         except:
             log_exception(self.logger, f'{self.pre} Exception during write')
             return False
@@ -236,6 +242,8 @@ class IT6900:
                 return v_type(self.response)
             else:
                 return None
+        except KeyboardInterrupt:
+            raise
         except:
             self.logger.debug('Can not convert %s to %s', self.response, v_type)
             return None
@@ -294,6 +302,8 @@ class IT6900:
                 return self.response[:-1].decode()
             else:
                 return 'Unknown Device'
+        except KeyboardInterrupt:
+            raise
         except:
             return 'Unknown Device'
 
@@ -304,6 +314,8 @@ class IT6900:
                 return serial_number
             else:
                 return ""
+        except KeyboardInterrupt:
+            raise
         except:
             return ""
 
@@ -313,6 +325,8 @@ class IT6900:
                 return self.response[:-1].decode().split(',')[1]
             else:
                 return "Unknown Device"
+        except KeyboardInterrupt:
+            raise
         except:
             return "Unknown Device"
 
@@ -377,17 +391,18 @@ class IT6900_Lambda(IT6900):
 if __name__ == "__main__":
     pd1 = IT6900("COM3", baudrate=115200)
     # pd1.detect_baud()
-    for i in range(100):
+    while True:
+    # for i in range(100):
         cmd = "*IDN?"
         t_0 = time.time()
         v1 = pd1.send_command(cmd)
         dt1 = int((time.time() - t_0) * 1000.0)  # ms
-        print(pd1.port, cmd, '->', pd1.response, v1, '%4d ms ' % dt1)
+        # print(pd1.port, cmd, '->', pd1.response, v1, '%4d ms ' % dt1)
         cmd = "VOLT?"
         t_0 = time.time()
         v1 = pd1.send_command(cmd)
         dt1 = int((time.time() - t_0) * 1000.0)  # ms
-        print(pd1.port, cmd, '->', pd1.response, v1, '%4d ms ' % dt1)
+        # print(pd1.port, cmd, '->', pd1.response, v1, '%4d ms ' % dt1)
     print('Errors', pd1.read_errors())
     print('Total I/O:', pd1.io_count)
     print('Total Errors:', pd1.io_error_count)
