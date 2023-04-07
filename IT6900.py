@@ -34,10 +34,11 @@ class IT6900:
         # logger
         self.logger = kwargs.get('logger', config_logger())
         # timeout
-        self.read_timeout = kwargs.get('read_timeout', 0.5)
+        self.retries = kwargs.get('retries', 2)
+        self.read_timeout = kwargs.get('read_timeout', 0.3)
         self.read_timeout_time = float('inf')
         self.suspend_to = 0.0
-        self.suspend_delay = kwargs.get('suspend_delay', 5.0)
+        self.suspend_delay = kwargs.get('suspend_delay', 6.0)
         self.reconnect_timeout_time = 0.0
         #
         self.command = b''
@@ -75,7 +76,7 @@ class IT6900:
         self.switch_remote()
         self.clear_status()
         # read device id
-        self.id = self.read_device_id()
+        self.id = self.read_device_id(False)
         if not self.id_ok():
             self.ready = False
             self.suspend()
@@ -99,7 +100,7 @@ class IT6900:
         except KeyboardInterrupt:
             raise
         except:
-            log_exception(self.logger, f'{self.pre} Exception')
+            log_exception(self.logger, f'{self.pre} Init exception')
             self.suspend()
             return False
         self.logger.debug(f'{self.pre} Device has been initialized')
@@ -136,32 +137,40 @@ class IT6900:
             if not command.endswith(LF):
                 command += LF
             #
-            self.response = b''
+            result = False
+            n = self.retries
             t0 = time.perf_counter()
-            # send command
-            if not self.write(command):
-                return False
-            # check response
-            if check_response is None:
-                if b'?' in command:
-                    check_response = True
+            while n > 0:
+                n -= 1
+                self.response = b''
+                t0 = time.perf_counter()
+                # send command
+                if not self.write(command):
+                    continue
+                # check response
+                if check_response is None:
+                    if b'?' in command:
+                        check_response = True
+                    else:
+                        check_response = False
+                if not check_response:
+                    result = True
                 else:
-                    check_response = False
-            if not check_response:
-                result = True
-            else:
-                # read response (to LF by default)
-                result = self.read_response()
-            # calculate time stats
-            dt = time.perf_counter() - t0
-            self.min_io_time = min(self.min_io_time, dt)
-            self.max_io_time = max(self.max_io_time, dt)
-            self.avg_io_time = (self.avg_io_time * (self.io_count - 1) + dt) / self.io_count
-            #
-            if not result:
+                    # read response (to LF by default)
+                    result = self.read_response()
+                # calculate time stats
+                dt = time.perf_counter() - t0
+                self.min_io_time = min(self.min_io_time, dt)
+                self.max_io_time = max(self.max_io_time, dt)
+                self.avg_io_time = (self.avg_io_time * (self.io_count - 1) + dt) / self.io_count
+                #
+                if result:
+                    break
                 self.io_error_count += 1
-                self.logger.info(f'{self.pre} I/O ERROR response {self.response} for {command}')
+            if not result:
                 self.suspend()
+                self.logger.info(f'{self.pre} I/O ERROR {command} -> {self.response}')
+            dt = time.perf_counter() - t0
             self.logger.debug(f'{self.pre} {command} -> {self.response}, {result}, %4.0f ms', dt * 1000)
             return result
         except KeyboardInterrupt:
@@ -187,18 +196,22 @@ class IT6900:
 
     @property
     def ready(self):
-        if not time.perf_counter() > self.suspend_to:
-            self.logger.debug(f'{self.pre} Suspended')
+        if time.perf_counter() < self.suspend_to:
+            # self.logger.debug(f'{self.pre} Suspended')
             return False
-        if not self._ready:
-            self.logger.debug(f'{self.pre} Try to init')
-            self.init()
+        if self.suspend_to <= 0.0:
+            return True
+        # was suspended and expires
+        self.close_com_port()
+        self.init()
         val = self._ready and time.perf_counter() > self.suspend_to
         return val
 
     @ready.setter
     def ready(self, value):
         self._ready = bool(value)
+        if value:
+            self.suspend_to = 0.0
 
     def read(self, size=1, timeout=None):
         result = b''
@@ -221,9 +234,9 @@ class IT6900:
         return result
 
     def suspend(self):
-        if time.time() < self.suspend_to:
+        if time.perf_counter() < self.suspend_to:
             return
-        self.suspend_to = time.time() + self.suspend_delay
+        self.suspend_to = time.perf_counter() + self.suspend_delay
         self.logger.debug(f'{self.pre} Suspended for {self.suspend_delay} s')
 
     def read_until(self, terminator=LF, size=None, timeout=None):
@@ -326,9 +339,9 @@ class IT6900:
     def read_power(self):
         return self.read_value(b'MEAS:POW?')
 
-    def read_device_id(self):
+    def read_device_id(self, check_ready=True):
         try:
-            if self.send_command(b'*IDN?', check_ready=False):
+            if self.send_command(b'*IDN?', check_ready=check_ready):
                 return self.response[:-1].decode()
             else:
                 return 'Unknown Device'
