@@ -166,11 +166,12 @@ class IT6900:
                 if result:
                     break
                 self.io_error_count += 1
+            dt = time.perf_counter() - t0
             if not result:
                 self.suspend()
-                self.logger.info(f'{self.pre} I/O ERROR {command} -> {self.response}')
-            dt = time.perf_counter() - t0
-            self.logger.debug(f'{self.pre} {command} -> {self.response}, {result}, %4.0f ms', dt * 1000)
+                self.logger.info(f'{self.pre} I/O ERROR {command} -> {self.response}, {result}, %4.0f ms', dt * 1000)
+            else:
+                self.logger.debug(f'{self.pre} {command} -> {self.response}, {result}, %4.0f ms', dt * 1000)
             return result
         except KeyboardInterrupt:
             raise
