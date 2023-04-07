@@ -78,7 +78,6 @@ class IT6900:
         # read device id
         self.id = self.read_device_id(False)
         if not self.id_ok():
-            self.ready = False
             self.suspend()
             self.logger.error(f'{self.pre}  Initialization error')
             return False
@@ -203,8 +202,7 @@ class IT6900:
             return True
         # was suspended and expires
         self.close_com_port()
-        self.init()
-        val = self._ready and time.perf_counter() > self.suspend_to
+        val = self.init()
         return val
 
     @ready.setter
