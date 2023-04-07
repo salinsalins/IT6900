@@ -223,12 +223,12 @@ class IT6900:
                     if len(r) > 0:
                         result += r
                 if self.timeout:
-                    self.logger.debug(f'{self.pre} Reading timeout')
+                    self.logger.debug(f'{self.pre} read timeout')
                     return result
         except KeyboardInterrupt:
             raise
         except:
-            log_exception(self.logger)
+            log_exception(self.logger, f'{self.pre} read exception')
         return result
 
     def suspend(self):
