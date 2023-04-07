@@ -116,7 +116,7 @@ class IT6900:
         except KeyboardInterrupt:
             raise
         except:
-            log_exception(self.logger)
+            log_exception(self.logger, f'{self.pre} COM port close exception')
 
     def send_command(self, command,
                      check_response: bool = None,
