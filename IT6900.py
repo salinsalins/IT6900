@@ -45,8 +45,8 @@ class IT6900:
         self.response = b''
         # com port, id, and serial number
         self.com = None
-        self.id = 'Unknown IT6***'
-        self.type = 'Unknown IT6***'
+        self.id = 'Unknown Device'
+        self.type = 'Unknown Device'
         self.sn = ''
         # log prefix
         self.pre = f'{self.id} {self.port} '
