@@ -106,11 +106,11 @@ class IT6900_Server(TangoServerPrototype):
             # set state to running
             msg = '%s %s at %s initialized successfully' % (self.get_name(), self.it6900.type, self.it6900.port)
             self.logger.info(msg)
-            self.set_state(DevState.RUNNING, msg)
+            self.set_running(msg)
         else:
             msg = '%s initialization error' % self.get_name()
             self.logger.error(msg)
-            self.set_state(DevState.FAULT, msg)
+            self.set_fault(msg)
 
     def delete_device(self):
         self.it6900.ready = False
@@ -129,32 +129,14 @@ class IT6900_Server(TangoServerPrototype):
             return self.it6900.type
         return "Uninitialized"
 
-    def read_output_state(self):
-        if self.it6900.initialized():
-            value = self.it6900.read_output()
-            if value is not None:
-                qual = AttrQuality.ATTR_VALID
-                self.set_running()
-            else:
-                qual = AttrQuality.ATTR_INVALID
-                value = False
-                self.set_fault()
-        else:
-            value = False
-            qual = AttrQuality.ATTR_INVALID
-            self.set_fault('I/O to uninitialized device')
-        self.output_state.set_value(value)
-        self.output_state.set_quality(qual)
-        return value
-
-    def common_read(self, read_function, attrib, wvalue=None):
+    def common_read(self, read_function, attrib, wrong_value=None):
         if not self.it6900.initialized():
-            attrib.set_value(wvalue)
+            attrib.set_value(wrong_value)
             attrib.set_quality(AttrQuality.ATTR_INVALID)
             msg = "Read from offline device %s" % self.name
             self.logger.warning(msg)
             self.set_fault(msg)
-            return wvalue
+            return wrong_value
         value = read_function()
         if value is not None:
             attrib.set_value(value)
@@ -162,12 +144,12 @@ class IT6900_Server(TangoServerPrototype):
             self.set_running()
             return value
         else:
-            attrib.set_value(wvalue)
+            attrib.set_value(wrong_value)
             attrib.set_quality(AttrQuality.ATTR_INVALID)
             msg = "Invalid reading response for %s" % self.name
             self.logger.warning(msg)
             self.set_fault(msg)
-            return wvalue
+            return wrong_value
 
     def common_write(self, write_function, attrib, value):
         if not self.it6900.initialized():
@@ -185,6 +167,25 @@ class IT6900_Server(TangoServerPrototype):
         self.logger.warning(msg)
         self.set_fault(msg)
         return False
+
+    def read_output_state(self):
+        return self.common_read(self.it6900.read_output, self.output_state, False)
+        # if self.it6900.initialized():
+        #     value = self.it6900.read_output()
+        #     if value is not None:
+        #         qual = AttrQuality.ATTR_VALID
+        #         self.set_running()
+        #     else:
+        #         qual = AttrQuality.ATTR_INVALID
+        #         value = False
+        #         self.set_fault()
+        # else:
+        #     value = False
+        #     qual = AttrQuality.ATTR_INVALID
+        #     self.set_fault('I/O to uninitialized device')
+        # self.output_state.set_value(value)
+        # self.output_state.set_quality(qual)
+        # return value
 
     def write_output_state(self, value):
         return self.common_write(self.it6900.write_output, self.output_state, value)
