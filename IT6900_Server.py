@@ -222,7 +222,7 @@ class IT6900_Server(TangoServerPrototype):
 
     def read_current(self):
         if self.it6900.initialized():
-            value = self.it6900.read_voltage()
+            value = self.it6900.read_current()
             if value is not None:
                 qual = AttrQuality.ATTR_VALID
                 self.set_running()
