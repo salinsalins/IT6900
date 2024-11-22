@@ -20,7 +20,7 @@ class IT6900Exception(Exception):
 
 
 class IT6900:
-    ID_OK = 'ITECH Ltd., IT69'
+    ID_OK = 'ITECH'
     DEVICE_NAME = 'IT6900'
     DEVICE_FAMILY = 'IT6900 family Power Supply'
     _devices = []
@@ -300,10 +300,11 @@ class IT6900:
 
     def write_output(self, value: bool):
         if value:
-            t_value = 'ON'
+            t_value = b'ON'
         else:
-            t_value = 'OFF'
-        self.write_value(b'OUTP', t_value)
+            t_value = b'OFF'
+        cmd = b'OUTP ' + t_value
+        v = self.read_value(cmd, type(value))
         return bool(self.response[:-1]) == value
 
     def write_voltage(self, value: float):
