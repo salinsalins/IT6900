@@ -151,7 +151,9 @@ class IT6900_Server(TangoServerPrototype):
         if not self.it6900.initialized():
             attrib.set_value(wvalue)
             attrib.set_quality(AttrQuality.ATTR_INVALID)
-            self.set_fault('Read from uninitialized device')
+            msg = "Read from offline device %s" % self.name
+            self.logger.warning(msg)
+            self.set_fault(msg)
             return wvalue
         value = read_function()
         if value is not None:
@@ -162,7 +164,9 @@ class IT6900_Server(TangoServerPrototype):
         else:
             attrib.set_value(wvalue)
             attrib.set_quality(AttrQuality.ATTR_INVALID)
-            self.set_fault()
+            msg = "Invalid reading response for %s" % self.name
+            self.logger.warning(msg)
+            self.set_fault(msg)
             return wvalue
 
     def common_write(self, write_function, attrib, value):
@@ -177,135 +181,127 @@ class IT6900_Server(TangoServerPrototype):
             self.set_running()
             return True
         attrib.set_quality(AttrQuality.ATTR_INVALID)
-        self.set_fault()
+        msg = "Error writing to %s" % self.name
+        self.logger.warning(msg)
+        self.set_fault(msg)
         return False
 
     def write_output_state(self, value):
         return self.common_write(self.it6900.write_output, self.output_state, value)
-        # if not self.it6900.initialized():
-        #     self.output_state.set_quality(AttrQuality.ATTR_INVALID)
-        #     msg = "Write to offline device %s" % self.name
-        #     self.logger.warning(msg)
-        #     self.set_fault(msg)
-        #     return False
-        # else:
-        #     if self.it6900.write_output(value):
-        #         self.output_state.set_quality(AttrQuality.ATTR_VALID)
-        #         result = True
-        #         self.set_running()
-        #     else:
-        #         self.output_state.set_quality(AttrQuality.ATTR_INVALID)
-        #         result = False
-        #         self.set_fault()
-        # return result
 
     def read_power(self):
         return self.common_read(self.it6900.read_power, self.power)
 
     def read_voltage(self):
-        if self.it6900.initialized():
-            value = self.it6900.read_voltage()
-            if value is not None:
-                qual = AttrQuality.ATTR_VALID
-                self.set_running()
-            else:
-                qual = AttrQuality.ATTR_INVALID
-                value = float('nan')
-                self.set_fault()
-        else:
-            value = float('nan')
-            qual = AttrQuality.ATTR_INVALID
-            self.set_fault('I/O to uninitialized device')
-        self.voltage.set_value(value)
-        self.voltage.set_quality(qual)
-        return value
+        return self.common_read(self.it6900.read_voltage, self.voltage, float('nan'))
+        # if self.it6900.initialized():
+        #     value = self.it6900.read_voltage()
+        #     if value is not None:
+        #         qual = AttrQuality.ATTR_VALID
+        #         self.set_running()
+        #     else:
+        #         qual = AttrQuality.ATTR_INVALID
+        #         value = float('nan')
+        #         self.set_fault()
+        # else:
+        #     value = float('nan')
+        #     qual = AttrQuality.ATTR_INVALID
+        #     self.set_fault('I/O to uninitialized device')
+        # self.voltage.set_value(value)
+        # self.voltage.set_quality(qual)
+        # return value
 
     def read_current(self):
-        if self.it6900.initialized():
-            value = self.it6900.read_current()
-            if value is not None:
-                qual = AttrQuality.ATTR_VALID
-                self.set_running()
-            else:
-                qual = AttrQuality.ATTR_INVALID
-                value = float('nan')
-                self.set_fault()
-        else:
-            value = float('nan')
-            qual = AttrQuality.ATTR_INVALID
-            self.set_fault('I/O to uninitialized device')
-        self.current.set_value(value)
-        self.current.set_quality(qual)
-        return value
+        return self.common_read(self.it6900.read_current, self.current, float('nan'))
+        # if self.it6900.initialized():
+        #     value = self.it6900.read_current()
+        #     if value is not None:
+        #         qual = AttrQuality.ATTR_VALID
+        #         self.set_running()
+        #     else:
+        #         qual = AttrQuality.ATTR_INVALID
+        #         value = float('nan')
+        #         self.set_fault()
+        # else:
+        #     value = float('nan')
+        #     qual = AttrQuality.ATTR_INVALID
+        #     self.set_fault('I/O to uninitialized device')
+        # self.current.set_value(value)
+        # self.current.set_quality(qual)
+        # return value
 
     def read_programmed_voltage(self):
-        if self.it6900.initialized():
-            value = self.it6900.read_programmed_voltage()
-            if value is not None:
-                qual = AttrQuality.ATTR_VALID
-                self.set_running()
-            else:
-                qual = AttrQuality.ATTR_INVALID
-                value = float('nan')
-                self.set_fault()
-        else:
-            value = float('nan')
-            qual = AttrQuality.ATTR_INVALID
-            self.set_fault('I/O to uninitialized device')
-        self.programmed_voltage.set_value(value)
-        self.programmed_voltage.set_quality(qual)
-        return value
+        return self.common_read(self.it6900.read_programmed_voltage, self.programmed_voltage, float('nan'))
+        # if self.it6900.initialized():
+        #     value = self.it6900.read_programmed_voltage()
+        #     if value is not None:
+        #         qual = AttrQuality.ATTR_VALID
+        #         self.set_running()
+        #     else:
+        #         qual = AttrQuality.ATTR_INVALID
+        #         value = float('nan')
+        #         self.set_fault()
+        # else:
+        #     value = float('nan')
+        #     qual = AttrQuality.ATTR_INVALID
+        #     self.set_fault('I/O to uninitialized device')
+        # self.programmed_voltage.set_value(value)
+        # self.programmed_voltage.set_quality(qual)
+        # return value
 
     def read_programmed_current(self):
-        if self.it6900.initialized():
-            value = self.it6900.read_programmed_current()
-            if value is not None:
-                qual = AttrQuality.ATTR_VALID
-                self.set_running()
-            else:
-                qual = AttrQuality.ATTR_INVALID
-                value = float('nan')
-                self.set_fault()
-        else:
-            value = float('nan')
-            qual = AttrQuality.ATTR_INVALID
-            self.set_fault('I/O to uninitialized device')
-        self.programmed_current.set_value(value)
-        self.programmed_current.set_quality(qual)
-        return value
+        return self.common_read(self.it6900.read_programmed_current, self.programmed_current, float('nan'))
+        # if self.it6900.initialized():
+        #     value = self.it6900.read_programmed_current()
+        #     if value is not None:
+        #         qual = AttrQuality.ATTR_VALID
+        #         self.set_running()
+        #     else:
+        #         qual = AttrQuality.ATTR_INVALID
+        #         value = float('nan')
+        #         self.set_fault()
+        # else:
+        #     value = float('nan')
+        #     qual = AttrQuality.ATTR_INVALID
+        #     self.set_fault('I/O to uninitialized device')
+        # self.programmed_current.set_value(value)
+        # self.programmed_current.set_quality(qual)
+        # return value
 
     def write_programmed_voltage(self, value):
-        if not self.it6900.initialized():
-            msg = "Writing to offline device %s" % self.name
-            self.logger.warning(msg)
-            self.set_fault(msg)
-            return False
-        else:
-            result = self.it6900.write_voltage(value)
-        if result:
-            self.programmed_voltage.set_quality(AttrQuality.ATTR_VALID)
-            self.set_running()
-        else:
-            self.programmed_voltage.set_quality(AttrQuality.ATTR_INVALID)
-            self.set_fault()
-        return result
+        return self.common_write(self.it6900.read_programmed_voltage, self.programmed_voltage, value)
+        # if not self.it6900.initialized():
+        #     msg = "Writing to offline device %s" % self.name
+        #     self.logger.warning(msg)
+        #     self.set_fault(msg)
+        #     return False
+        # else:
+        #     result = self.it6900.write_voltage(value)
+        # if result:
+        #     self.programmed_voltage.set_quality(AttrQuality.ATTR_VALID)
+        #     self.set_running()
+        # else:
+        #     self.programmed_voltage.set_quality(AttrQuality.ATTR_INVALID)
+        #     self.set_fault()
+        # return result
 
     def write_programmed_current(self, value):
-        if not self.it6900.initialized():
-            self.programmed_voltage.set_quality(AttrQuality.ATTR_INVALID)
-            msg = "Writing to offline device %s" % self.name
-            self.logger.warning(msg)
-            self.set_fault(msg)
-            return False
-        else:
-            result = self.it6900.write_current(value)
-        if result:
-            self.programmed_voltage.set_quality(AttrQuality.ATTR_VALID)
-            self.set_running()
-        else:
-            self.programmed_voltage.set_quality(AttrQuality.ATTR_INVALID)
-            self.set_fault()
-        return result
+        return self.common_write(self.it6900.read_programmed_current, self.programmed_current, value)
+        # if not self.it6900.initialized():
+        #     self.programmed_voltage.set_quality(AttrQuality.ATTR_INVALID)
+        #     msg = "Writing to offline device %s" % self.name
+        #     self.logger.warning(msg)
+        #     self.set_fault(msg)
+        #     return False
+        # else:
+        #     result = self.it6900.write_current(value)
+        # if result:
+        #     self.programmed_current.set_quality(AttrQuality.ATTR_VALID)
+        #     self.set_running()
+        # else:
+        #     self.programmed_current.set_quality(AttrQuality.ATTR_INVALID)
+        #     self.set_fault()
+        # return result
 
     @command
     def reconnect(self):
@@ -330,12 +326,6 @@ class IT6900_Server(TangoServerPrototype):
         return self.it6900.response[:-1].decode()
 
 
-def looping():
-    time.sleep(1.0)
-    for dev in IT6900_Server.devices:
-        IT6900_Server.devices[dev].logger.debug("Test loop")
-
 
 if __name__ == "__main__":
-    # IT6900_Server.run_server(event_loop=looping)
     IT6900_Server.run_server()
