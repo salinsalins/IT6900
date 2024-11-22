@@ -8,15 +8,15 @@ from tango import AttrQuality, AttrWriteType, DispLevel
 from tango import DevState
 from tango.server import Device, attribute, command
 
+if os.path.realpath('../TangoUtils') not in sys.path: sys.path.append(os.path.realpath('../TangoUtils'))
 import IT6900
 
-if os.path.realpath('../TangoUtils') not in sys.path: sys.path.append(os.path.realpath('../TangoUtils'))
 from TangoServerPrototype import TangoServerPrototype
 
 ORGANIZATION_NAME = 'BINP'
 APPLICATION_NAME = 'IT6900 family Power Supply Tango Device Server'
 APPLICATION_NAME_SHORT = 'IT6900_Server'
-APPLICATION_VERSION = '1.0'
+APPLICATION_VERSION = '1.5'
 
 
 class IT6900_Server(TangoServerPrototype):
@@ -266,7 +266,7 @@ class IT6900_Server(TangoServerPrototype):
         # return value
 
     def write_programmed_voltage(self, value):
-        return self.common_write(self.it6900.read_programmed_voltage, self.programmed_voltage, value)
+        return self.common_write(self.it6900.write_voltage, self.programmed_voltage, value)
         # if not self.it6900.initialized():
         #     msg = "Writing to offline device %s" % self.name
         #     self.logger.warning(msg)
@@ -283,7 +283,7 @@ class IT6900_Server(TangoServerPrototype):
         # return result
 
     def write_programmed_current(self, value):
-        return self.common_write(self.it6900.read_programmed_current, self.programmed_current, value)
+        return self.common_write(self.it6900.write_current, self.programmed_current, value)
         # if not self.it6900.initialized():
         #     self.programmed_voltage.set_quality(AttrQuality.ATTR_INVALID)
         #     msg = "Writing to offline device %s" % self.name

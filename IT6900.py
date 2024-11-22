@@ -304,8 +304,8 @@ class IT6900:
         else:
             t_value = b'OFF'
         cmd = b'OUTP ' + t_value
-        v = self.read_value(cmd, type(value))
-        return bool(self.response[:-1]) == value
+        v = self.read_value(cmd, bool)
+        return True
 
     def write_voltage(self, value: float):
         return self.write_value(b'VOLT', value)
