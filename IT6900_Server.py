@@ -2,19 +2,15 @@
 # -*- coding: utf-8 -*-
 """IT6900 family power supply tango device server"""
 import sys
-import threading
-import time
-from math import isnan
+import os
 
-import tango
 from tango import AttrQuality, AttrWriteType, DispLevel
 from tango import DevState
 from tango.server import Device, attribute, command
 
 import IT6900
-from config_logger import config_logger
 
-sys.path.append('../TangoUtils')
+if os.path.realpath('../TangoUtils') not in sys.path: sys.path.append(os.path.realpath('../TangoUtils'))
 from TangoServerPrototype import TangoServerPrototype
 
 ORGANIZATION_NAME = 'BINP'
@@ -325,7 +321,6 @@ class IT6900_Server(TangoServerPrototype):
         else:
             self.set_fault('Command Error')
         return self.it6900.response[:-1].decode()
-
 
 
 if __name__ == "__main__":
