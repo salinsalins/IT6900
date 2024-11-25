@@ -101,11 +101,9 @@ class IT6900_Server(TangoServerPrototype):
             self.output_state.set_write_value(self.read_output_state())
             # set state to running
             msg = '%s %s at %s initialized successfully' % (self.get_name(), self.it6900.type, self.it6900.port)
-            self.logger.info(msg)
             self.set_running(msg)
         else:
             msg = '%s initialization error' % self.get_name()
-            self.logger.error(msg)
             self.set_fault(msg)
 
     def delete_device(self):
