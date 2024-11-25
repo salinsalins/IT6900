@@ -128,7 +128,6 @@ class IT6900_Server(TangoServerPrototype):
             attrib.set_value(wrong_value)
             attrib.set_quality(AttrQuality.ATTR_INVALID)
             msg = "Read from offline device %s" % self.name
-            self.logger.warning(msg)
             self.set_fault(msg)
             return wrong_value
         value = read_function()
@@ -141,7 +140,6 @@ class IT6900_Server(TangoServerPrototype):
             attrib.set_value(wrong_value)
             attrib.set_quality(AttrQuality.ATTR_INVALID)
             msg = "Invalid reading response for %s" % self.name
-            self.logger.warning(msg)
             self.set_fault(msg)
             return wrong_value
 
@@ -149,7 +147,6 @@ class IT6900_Server(TangoServerPrototype):
         if not self.it6900.initialized():
             attrib.set_quality(AttrQuality.ATTR_INVALID)
             msg = "Write to offline device %s" % self.name
-            self.logger.warning(msg)
             self.set_fault(msg)
             return False
         if write_function(value):
@@ -158,7 +155,6 @@ class IT6900_Server(TangoServerPrototype):
             return True
         attrib.set_quality(AttrQuality.ATTR_INVALID)
         msg = "Error writing to %s" % self.name
-        self.logger.warning(msg)
         self.set_fault(msg)
         return False
 
